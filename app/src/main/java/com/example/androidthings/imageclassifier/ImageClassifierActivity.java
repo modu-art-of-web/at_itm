@@ -49,12 +49,14 @@ import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.entity.mime.MultipartEntity;
 import org.apache.http.entity.mime.content.ByteArrayBody;
+import org.apache.http.entity.mime.content.StringBody;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.util.EntityUtils;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.Charset;
 import java.util.Locale;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -65,12 +67,14 @@ import static com.example.androidthings.imageclassifier.R.id.results;
 
 
 public class ImageClassifierActivity extends Activity implements ImageReader.OnImageAvailableListener {
+
     private static final String TAG = "ImageClassifierActivity";
 
     private ImagePreprocessor mImagePreprocessor;
     private TextToSpeech mTtsEngine;
     private TtsSpeaker mTtsSpeaker;
     private CameraHandler mCameraHandler;
+    private MqttHandler MqttHandler;
     private TensorFlowImageClassifier mTensorFlowClassifier;
 
     private HandlerThread mBackgroundThread;
@@ -89,6 +93,8 @@ public class ImageClassifierActivity extends Activity implements ImageReader.OnI
     private TimerTask mTask;
     private Timer mTimer;
 
+    private String styleType = "0";
+
     @Override
     protected void onCreate(final Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -102,6 +108,9 @@ public class ImageClassifierActivity extends Activity implements ImageReader.OnI
         mResultViews[2] = (TextView) findViewById(R.id.result3);
 
         init();
+
+        MqttHandler = MqttHandler.getInstance();
+        MqttHandler.startMqtt();
 
         mAuth = FirebaseAuth.getInstance();
         mAuthListener = new FirebaseAuth.AuthStateListener() {
@@ -311,32 +320,6 @@ public class ImageClassifierActivity extends Activity implements ImageReader.OnI
         return json;
     }
 
-
-//    public void postRequest(Bitmap bitmap){
-//        HttpClient client = HttpClientBuilder.create().build();
-//        HttpPost post = new HttpPost("http://www.technicalkeeda.com/post-request");
-//        try {
-//            List<NameValuePair> nameValuePairs = new ArrayList<NameValuePair>();
-//            nameValuePairs.add(new BasicNameValuePair("name", "Yashwant"));
-//            post.setEntity(new UrlEncodedFormEntity(nameValuePairs));
-//
-//            HttpResponse response = client.execute(post);
-//
-//            int responseCode = response.getStatusLine().getStatusCode();
-//            System.out.println("**POST** request Url: " + post.getURI());
-//            System.out.println("Parameters : " + nameValuePairs);
-//            System.out.println("Response Code: " + responseCode);
-//            System.out.println("Content:-\n");
-//            BufferedReader rd = new BufferedReader(new InputStreamReader(response.getEntity().getContent()));
-//            String line = "";
-//            while ((line = rd.readLine()) != null) {
-//                System.out.println(line);
-//            }
-//
-//        } catch (IOException e) {
-//            e.printStackTrace();
-//        }
-//    }
     public HttpEntity postRequest(Bitmap imageBitmap) {
         byte[] data = null;
         try {
@@ -352,7 +335,12 @@ public class ImageClassifierActivity extends Activity implements ImageReader.OnI
                 data = bos.toByteArray();
                 entity.addPart("photo", new ByteArrayBody(data,"image/jpeg", "test2.jpg"));
             }
-            // entity.addPart("category", new StringBody(categoryname,"text/plain",Charset.forName("UTF-8")));
+            styleType = MqttHandler.getStyleType();
+            if(styleType != "0"){
+                Log.e(TAG, "postRequest styleType :" + styleType);
+                entity.addPart("styleType", new StringBody(styleType,"text/plain", Charset.forName("UTF-8")));
+            }
+
 //            entity.addPart("category", new StringBody(catid,"text/plain", Charset.forName("UTF-8")));
 //            entity.addPart("your_contact_no", new  StringBody(phone,"text/plain",Charset.forName("UTF-8")));
 //            entity.addPart("your_emailid", new StringBody(email,"text/plain",Charset.forName("UTF-8")));
@@ -519,6 +507,14 @@ public class ImageClassifierActivity extends Activity implements ImageReader.OnI
         } catch (Throwable t) {
             // close quietly
         }
+
+        try {
+            if (MqttHandler != null) MqttHandler.destroyMqtt();
+        } catch (Throwable t) {
+            // close quietly
+        }
+
+
         try {
             if (mTensorFlowClassifier != null) mTensorFlowClassifier.destroyClassifier();
         } catch (Throwable t) {
