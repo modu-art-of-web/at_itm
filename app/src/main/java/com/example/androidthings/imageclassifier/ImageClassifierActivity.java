@@ -42,10 +42,17 @@ import com.google.firebase.auth.AuthResult;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 
+import org.apache.http.HttpEntity;
+import org.apache.http.HttpResponse;
+import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpPost;
+import org.apache.http.entity.mime.MultipartEntity;
+import org.apache.http.entity.mime.content.ByteArrayBody;
 import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.util.EntityUtils;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Locale;
@@ -305,11 +312,71 @@ public class ImageClassifierActivity extends Activity implements ImageReader.OnI
     }
 
 
+//    public void postRequest(Bitmap bitmap){
+//        HttpClient client = HttpClientBuilder.create().build();
+//        HttpPost post = new HttpPost("http://www.technicalkeeda.com/post-request");
+//        try {
+//            List<NameValuePair> nameValuePairs = new ArrayList<NameValuePair>();
+//            nameValuePairs.add(new BasicNameValuePair("name", "Yashwant"));
+//            post.setEntity(new UrlEncodedFormEntity(nameValuePairs));
+//
+//            HttpResponse response = client.execute(post);
+//
+//            int responseCode = response.getStatusLine().getStatusCode();
+//            System.out.println("**POST** request Url: " + post.getURI());
+//            System.out.println("Parameters : " + nameValuePairs);
+//            System.out.println("Response Code: " + responseCode);
+//            System.out.println("Content:-\n");
+//            BufferedReader rd = new BufferedReader(new InputStreamReader(response.getEntity().getContent()));
+//            String line = "";
+//            while ((line = rd.readLine()) != null) {
+//                System.out.println(line);
+//            }
+//
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//        }
+//    }
+    public HttpEntity postRequest(Bitmap imageBitmap) {
+        byte[] data = null;
+        try {
+//            String url = "http://andapp.freetings.in/testbyme.php?";
+            String url = "http://172.20.10.9:5000/send_image";
+            HttpClient httpclient = new DefaultHttpClient();
+            HttpPost httppost = new HttpPost(url);
+            MultipartEntity entity = new MultipartEntity();
 
+            if(imageBitmap!=null){
+                ByteArrayOutputStream bos = new ByteArrayOutputStream();
+                imageBitmap.compress(Bitmap.CompressFormat.JPEG, 100, bos);
+                data = bos.toByteArray();
+                entity.addPart("photo", new ByteArrayBody(data,"image/jpeg", "test2.jpg"));
+            }
+            // entity.addPart("category", new StringBody(categoryname,"text/plain",Charset.forName("UTF-8")));
+//            entity.addPart("category", new StringBody(catid,"text/plain", Charset.forName("UTF-8")));
+//            entity.addPart("your_contact_no", new  StringBody(phone,"text/plain",Charset.forName("UTF-8")));
+//            entity.addPart("your_emailid", new StringBody(email,"text/plain",Charset.forName("UTF-8")));
+//            entity.addPart("your_name", new StringBody(name,"text/plain",Charset.forName("UTF-8")));
+
+            httppost.setEntity(entity);
+            HttpResponse resp = httpclient.execute(httppost);
+            HttpEntity resEntity = resp.getEntity();
+            String string= EntityUtils.toString(resEntity);
+            //  Log.e("sdjkfkhk", string);
+
+            Log.e(TAG, "postRequest resEntity :" + resEntity);
+            return resEntity;
+        } catch (ClientProtocolException e) {
+            e.printStackTrace();
+            Log.e(TAG, "postRequest ClientProtocolException :" + e);
+        } catch (IOException e) {
+            Log.e(TAG, "postRequest IOException :" + e);
+            e.printStackTrace();
+        }
+        return null;
+    }
     public void savePicture(Bitmap bitmap){
-
-        HttpPost httppost = new HttpPost("http://www.사이트주소.com/script.php");
-
+        postRequest(bitmap);
 //        Date from = new Date();
 //        SimpleDateFormat transFormat = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss");
 //        String picName = transFormat.format(from);

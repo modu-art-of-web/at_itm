@@ -32,6 +32,9 @@ android {
         packagingOptions {
             exclude 'project.properties'
             exclude 'META-INF/INDEX.LIST'
+            exclude 'META-INF/NOTICE'
+            exclude 'META-INF/LICENSE' // It is not include LICENSE file
+            exclude 'META-INF/DEPENDENCIES'
         }
     }
     useLibrary 'org.apache.http.legacy'
@@ -71,6 +74,8 @@ dependencies {
     compile 'com.google.firebase:firebase-auth:11.0.1'
     compile 'org.apache.httpcomponents:httpcore:4.4.1'
     compile 'org.apache.httpcomponents:httpclient:4.5'
+    compile group: 'org.apache.httpcomponents' , name: 'httpclient-android' , version: '4.3.5.1'
+    compile 'org.apache.httpcomponents:httpmime:4.3.6'
     provided 'com.google.android.things:androidthings:0.4.1-devpreview'
 }
 
