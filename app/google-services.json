@@ -1,0 +1,117 @@
+{
+  "project_info": {
+    "project_number": "655545501320",
+    "firebase_url": "https://ras-pic.firebaseio.com",
+    "project_id": "ras-pic",
+    "storage_bucket": "ras-pic.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:655545501320:android:4f07b2fb8c4ffde8",
+        "android_client_info": {
+          "package_name": "com.example.androidthings.doorbell"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "655545501320-8qskvsqhcsbakbcl82cb5jia8dl2v2br.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC49lqqqJ39H-Khx-deKZhn34pc5g-47Nk"
+        }
+      ],
+      "services": {
+        "analytics_service": {
+          "status": 1
+        },
+        "appinvite_service": {
+          "status": 1,
+          "other_platform_oauth_client": []
+        },
+        "ads_service": {
+          "status": 2
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:655545501320:android:9d99916ba6091158",
+        "android_client_info": {
+          "package_name": "com.example.androidthings.imageclassifier"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "655545501320-4cu4deiknusq48rlp3uibhfr90kor89l.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.androidthings.imageclassifier",
+            "certificate_hash": "532b90dae2bddea20a728db2125b0fec26ed1a5b"
+          }
+        },
+        {
+          "client_id": "655545501320-8qskvsqhcsbakbcl82cb5jia8dl2v2br.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC49lqqqJ39H-Khx-deKZhn34pc5g-47Nk"
+        }
+      ],
+      "services": {
+        "analytics_service": {
+          "status": 1
+        },
+        "appinvite_service": {
+          "status": 2,
+          "other_platform_oauth_client": [
+            {
+              "client_id": "655545501320-8qskvsqhcsbakbcl82cb5jia8dl2v2br.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        },
+        "ads_service": {
+          "status": 2
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:655545501320:android:7c1e9462fab7808e",
+        "android_client_info": {
+          "package_name": "com.example.taejaehan.myapplication"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "655545501320-8qskvsqhcsbakbcl82cb5jia8dl2v2br.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC49lqqqJ39H-Khx-deKZhn34pc5g-47Nk"
+        }
+      ],
+      "services": {
+        "analytics_service": {
+          "status": 1
+        },
+        "appinvite_service": {
+          "status": 1,
+          "other_platform_oauth_client": []
+        },
+        "ads_service": {
+          "status": 2
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
