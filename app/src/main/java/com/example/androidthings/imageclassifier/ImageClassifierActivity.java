@@ -16,17 +16,25 @@
 package com.example.androidthings.imageclassifier;
 
 import android.app.Activity;
+import android.content.Context;
 import android.graphics.Bitmap;
+import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.Paint;
+import android.graphics.RectF;
 import android.media.Image;
 import android.media.ImageReader;
 import android.os.Bundle;
+import android.os.CountDownTimer;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.speech.tts.TextToSpeech;
 import android.speech.tts.UtteranceProgressListener;
 import android.support.annotation.NonNull;
+import android.text.TextPaint;
 import android.util.Log;
 import android.view.KeyEvent;
+import android.view.View;
 import android.view.WindowManager;
 import android.widget.ImageView;
 import android.widget.TextView;
@@ -41,6 +49,7 @@ import com.google.android.things.pio.PeripheralManagerService;
 import com.google.firebase.auth.AuthResult;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
+import com.wang.avi.AVLoadingIndicatorView;
 
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
@@ -62,7 +71,6 @@ import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static com.example.androidthings.imageclassifier.R.id.imageView;
 import static com.example.androidthings.imageclassifier.R.id.results;
 
 
@@ -71,17 +79,20 @@ public class ImageClassifierActivity extends Activity implements ImageReader.OnI
     private static final String TAG = "ImageClassifierActivity";
 
     private ImagePreprocessor mImagePreprocessor;
-    private TextToSpeech mTtsEngine;
-    private TtsSpeaker mTtsSpeaker;
-    private CameraHandler mCameraHandler;
+    private static TextToSpeech mTtsEngine;
+    private static TtsSpeaker mTtsSpeaker;
+    private static CameraHandler mCameraHandler;
     private MqttHandler MqttHandler;
     private TensorFlowImageClassifier mTensorFlowClassifier;
 
     private HandlerThread mBackgroundThread;
-    private Handler mBackgroundHandler;
+    private static Handler mBackgroundHandler;
 
-    private ImageView mImage;
     private TextView[] mResultViews;
+    private TextView explain_text;
+    private ImageView mImage;
+    private ImageView mBgimg;
+    private AVLoadingIndicatorView mLoadingAni;
 
     private AtomicBoolean mReady = new AtomicBoolean(false);
     private ButtonInputDriver mButtonDriver;
@@ -94,19 +105,15 @@ public class ImageClassifierActivity extends Activity implements ImageReader.OnI
     private Timer mTimer;
 
     private String styleType = "0";
+    private int cnt;
 
     @Override
     protected void onCreate(final Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
-        setContentView(R.layout.activity_camera);
-        mImage = (ImageView) findViewById(imageView);
-        mResultViews = new TextView[3];
-        mResultViews[0] = (TextView) findViewById(R.id.result1);
-        mResultViews[1] = (TextView) findViewById(R.id.result2);
-        mResultViews[2] = (TextView) findViewById(R.id.result3);
-
+        setContentView(R.layout.layout_main);
+        layoutSettingBeforeTakePic();
         init();
 
         MqttHandler = MqttHandler.getInstance();
@@ -143,8 +150,6 @@ public class ImageClassifierActivity extends Activity implements ImageReader.OnI
         }
     }
 
-
-
     @Override
     protected void onResume() {
         super.onResume();
@@ -180,8 +185,6 @@ public class ImageClassifierActivity extends Activity implements ImageReader.OnI
 //                }
 //            }
 //        };
-
-
     }
 
     private void init() {
@@ -191,6 +194,43 @@ public class ImageClassifierActivity extends Activity implements ImageReader.OnI
         mBackgroundThread.start();
         mBackgroundHandler = new Handler(mBackgroundThread.getLooper());
         mBackgroundHandler.post(mInitializeOnBackground);
+    }
+
+    private void layoutSettingBeforeTakePic() {
+        explain_text = (TextView) findViewById(R.id.explain_text);
+        explain_text.setText(R.string.choose_style_msg);
+
+        mBgimg = (ImageView) findViewById(R.id.bg_img);
+        mBgimg.setVisibility(View.VISIBLE);
+
+        mImage = (ImageView) findViewById(R.id.taken_picture);
+        mImage.setVisibility(View.GONE);
+
+        mLoadingAni = (AVLoadingIndicatorView)findViewById(R.id.loading_ani);
+        mLoadingAni.setIndicator("BallTrianglePathIndicator");
+        mLoadingAni.show();
+    }
+
+    private void layoutSettingAfterTakePic() {
+        explain_text = (TextView) findViewById(R.id.explain_text);
+        explain_text.setText("");
+
+        mBgimg = (ImageView) findViewById(R.id.bg_img);
+        mBgimg.setVisibility(View.INVISIBLE);
+
+        mImage = (ImageView) findViewById(R.id.taken_picture);
+        mImage.setVisibility(View.VISIBLE);
+
+        mLoadingAni = (AVLoadingIndicatorView)findViewById(R.id.loading_ani);
+        mLoadingAni.hide();
+        //mLoadingAni.setVisibility(View.GONE);
+    }
+
+    private void displaySendingAni() {
+        explain_text.setText(R.string.sending);
+        mLoadingAni.setIndicator("LineScaleIndicator");
+        //mLoadingAni.setVisibility(View.VISIBLE);
+        mLoadingAni.show();
     }
 
     private void initPIO() {
@@ -269,14 +309,14 @@ public class ImageClassifierActivity extends Activity implements ImageReader.OnI
         }
     };
 
-
     @Override
     public boolean onKeyUp(int keyCode, KeyEvent event) {
         Log.d(TAG, "Received key up: " + keyCode + ". Ready = " + mReady.get());
         if (keyCode == KeyEvent.KEYCODE_ENTER) {
             if (mReady.get()) {
                 setReady(false);
-                mBackgroundHandler.post(mBackgroundClickHandler);
+                //mBackgroundHandler.post(mBackgroundClickHandler);
+                setContentView(new CircularCountdown(this));
             } else {
                 Log.i(TAG, "Sorry, processing hasn't finished. Try again in a few seconds");
             }
@@ -324,7 +364,8 @@ public class ImageClassifierActivity extends Activity implements ImageReader.OnI
         byte[] data = null;
         try {
 //            String url = "http://andapp.freetings.in/testbyme.php?";
-            String url = "http://172.20.10.9:5000/send_image";
+            //String url = "http://172.20.10.9:5000/send_image";
+            String url = "http://192.168.43.209:5000/send-image";
             HttpClient httpclient = new DefaultHttpClient();
             HttpPost httppost = new HttpPost(url);
             MultipartEntity entity = new MultipartEntity();
@@ -440,9 +481,6 @@ public class ImageClassifierActivity extends Activity implements ImageReader.OnI
 //        });
     }
 
-
-
-
     @Override
     public void onImageAvailable(ImageReader reader) {
         final Bitmap bitmap;
@@ -454,6 +492,28 @@ public class ImageClassifierActivity extends Activity implements ImageReader.OnI
             @Override
             public void run() {
                 mImage.setImageBitmap(bitmap);
+                CountDownTimer sedingtimer = new CountDownTimer(5000, 1000) {
+                    @Override
+                    public void onTick(long l) {
+                        displaySendingAni();
+                    }
+                    @Override
+                    public void onFinish() {
+                        //setContentView(R.layout.layout_main);
+                        layoutSettingBeforeTakePic();
+                        try {
+                            if (mBackgroundThread != null) mBackgroundThread.quit();
+                        } catch (Throwable t) {
+                            // close quietly
+                        }
+                        mBackgroundThread = null;
+                        mBackgroundHandler = null;
+                        init();
+                        Log.e("carol","finish!!!");
+                    }
+                };
+
+                sedingtimer.start();
             }
         });
 
@@ -530,6 +590,155 @@ public class ImageClassifierActivity extends Activity implements ImageReader.OnI
         if (mTtsEngine != null) {
             mTtsEngine.stop();
             mTtsEngine.shutdown();
+        }
+    }
+
+
+    private class CircularCountdown extends View {
+        private final Paint backgroudFill;
+        private final Paint backgroundPaint;
+        private final Paint progressPaint;
+        private final Paint textPaint;
+
+        private long startTime;
+        private long currentTime;
+        private long maxTime;
+
+        private double progressMillisecond;
+        private double progress;
+
+        private RectF circleBounds;
+        private float radius;
+        private float handleRadius;
+        private float textHeight;
+        private float textOffset;
+
+        private final Handler viewHandler;
+        private final Runnable updateView;
+
+        public CircularCountdown(Context context) {
+            super(context);
+
+            // used to fit the circle into
+            circleBounds = new RectF();
+
+            // size of circle and handle
+            radius = 200;
+            handleRadius = 10;
+            cnt = 6;
+
+            // limit the counter to go up to maxTime ms
+            maxTime = 3000;
+
+            // start and current time
+            startTime = System.currentTimeMillis();
+            currentTime = startTime;
+
+            backgroudFill = new Paint();
+            backgroudFill.setColor(Color.BLACK);
+            backgroudFill.setStyle(Paint.Style.FILL);
+
+            // the style of the background
+            backgroundPaint = new Paint();
+            backgroundPaint.setStyle(Paint.Style.STROKE);
+            backgroundPaint.setAntiAlias(true);
+            backgroundPaint.setStrokeWidth(20);
+            backgroundPaint.setStrokeCap(Paint.Cap.SQUARE);
+            backgroundPaint.setColor(Color.parseColor("#4D4D4D"));  // dark gray
+
+            // the style of the 'progress'
+            progressPaint = new Paint();
+            progressPaint.setStyle(Paint.Style.STROKE);
+            progressPaint.setAntiAlias(true);
+            progressPaint.setStrokeWidth(20);
+            progressPaint.setStrokeCap(Paint.Cap.SQUARE);
+            progressPaint.setColor(Color.parseColor("#22741C"));    // light blue
+
+            // the style for the text in the middle
+            textPaint = new TextPaint();
+            textPaint.setTextSize(radius / 2);
+            textPaint.setColor(Color.WHITE);
+            textPaint.setTextAlign(Paint.Align.CENTER);
+
+            // text attributes
+            textHeight = textPaint.descent() - textPaint.ascent();
+            textOffset = (textHeight / 2) - textPaint.descent();
+
+            CountDownTimer timer = new CountDownTimer(5000, 1000) {
+                @Override
+                public void onTick(long l) {
+                    cnt--;
+                }
+                @Override
+                public void onFinish() {
+                    cnt = -1;
+                    viewHandler.removeCallbacks(updateView);
+                    mBackgroundHandler.post(mBackgroundClickHandler);
+                    setContentView(R.layout.layout_main);
+                    layoutSettingAfterTakePic();
+                }
+            };
+
+            // This will ensure the animation will run periodically
+            viewHandler = new Handler();
+            updateView = new Runnable() {
+                    @Override
+                    public void run() {
+                        // update current time
+                    currentTime = System.currentTimeMillis();
+
+                    // get elapsed time in milliseconds and clamp between <0, maxTime>
+                    progressMillisecond = ((currentTime - startTime) % 1000); //maxTime);
+
+                    // get current progress on a range <0, 1>
+                    progress =  progressMillisecond / 1000;//maxTime;
+
+                    if (cnt != -1) {
+                        ImageClassifierActivity.CircularCountdown.this.invalidate();
+                    }
+
+                    if (cnt == -1) {
+                        viewHandler.removeCallbacks(this);
+                    } else {
+                        viewHandler.postDelayed(updateView, 1000 / 60);
+                    }
+                }
+            };
+            viewHandler.post(updateView);
+            timer.start();
+        }
+
+        @Override
+        protected void onDraw(Canvas canvas) {
+            super.onDraw(canvas);
+            // get the center of the view
+            float centerWidth = canvas.getWidth() / 2;
+            float centerHeight = canvas.getHeight() / 2;
+
+
+            // set bound of our circle in the middle of the view
+            circleBounds.set(centerWidth - radius,
+                    centerHeight - radius,
+                    centerWidth + radius,
+                    centerHeight + radius);
+
+            canvas.drawPaint(backgroudFill);
+
+            // we want to start at -90°, 0° is pointing to the right
+            canvas.drawArc(circleBounds, -90, (float) (progress * 360), false, progressPaint);
+
+            // display text inside the circle
+            //canvas.drawText((double) (progressMillisecond / 100) / 10 + "s",
+            canvas.drawText(cnt  + "s",
+                    centerWidth,
+                    centerHeight + textOffset,
+                    textPaint);
+
+            // draw handle or the circle
+            canvas.drawCircle((float) (centerWidth + (Math.sin(progress * 2 * Math.PI) * radius)),
+                    (float) (centerHeight - (Math.cos(progress * 2 * Math.PI) * radius)),
+                    handleRadius,
+                    progressPaint);
         }
     }
 
