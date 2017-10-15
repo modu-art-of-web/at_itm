@@ -37,9 +37,11 @@ import android.view.KeyEvent;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.ImageView;
+import android.widget.RelativeLayout;
 import android.widget.TextView;
 
 import com.example.androidthings.imageclassifier.classifier.TensorFlowImageClassifier;
+import com.github.ybq.android.spinkit.SpinKitView;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
 import com.google.android.things.contrib.driver.button.Button;
@@ -49,7 +51,6 @@ import com.google.android.things.pio.PeripheralManagerService;
 import com.google.firebase.auth.AuthResult;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
-import com.wang.avi.AVLoadingIndicatorView;
 
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
@@ -88,11 +89,13 @@ public class ImageClassifierActivity extends Activity implements ImageReader.OnI
     private HandlerThread mBackgroundThread;
     private static Handler mBackgroundHandler;
 
-    private TextView[] mResultViews;
+    private RelativeLayout mText_layout;
     private TextView explain_text;
     private ImageView mImage;
     private ImageView mBgimg;
-    private AVLoadingIndicatorView mLoadingAni;
+    private SpinKitView mMainAni;
+    private SpinKitView mSendingAni;
+    CircularCountdown circleView;
 
     private AtomicBoolean mReady = new AtomicBoolean(false);
     private ButtonInputDriver mButtonDriver;
@@ -113,8 +116,10 @@ public class ImageClassifierActivity extends Activity implements ImageReader.OnI
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
         setContentView(R.layout.layout_main);
+        thread_init();
+        ui_init();
+        initPIO();
         layoutSettingBeforeTakePic();
-        init();
 
         MqttHandler = MqttHandler.getInstance();
         MqttHandler.startMqtt();
@@ -187,50 +192,50 @@ public class ImageClassifierActivity extends Activity implements ImageReader.OnI
 //        };
     }
 
-    private void init() {
-        initPIO();
-
+    private void thread_init() {
         mBackgroundThread = new HandlerThread("BackgroundThread");
         mBackgroundThread.start();
         mBackgroundHandler = new Handler(mBackgroundThread.getLooper());
         mBackgroundHandler.post(mInitializeOnBackground);
     }
 
-    private void layoutSettingBeforeTakePic() {
+    private void ui_init() {
+        mText_layout = (RelativeLayout)findViewById(R.id.text_layout);
         explain_text = (TextView) findViewById(R.id.explain_text);
+        mBgimg = (ImageView) findViewById(R.id.bg_img);
+        mImage = (ImageView) findViewById(R.id.taken_picture);
+        mMainAni = (SpinKitView)findViewById(R.id.main_ani);
+        mSendingAni = (SpinKitView) findViewById(R.id.sending_ani);
+    }
+
+    private void layoutSettingBeforeTakePic() {
+        mText_layout.setVisibility(View.VISIBLE);
         explain_text.setText(R.string.choose_style_msg);
 
-        mBgimg = (ImageView) findViewById(R.id.bg_img);
         mBgimg.setVisibility(View.VISIBLE);
-
-        mImage = (ImageView) findViewById(R.id.taken_picture);
         mImage.setVisibility(View.GONE);
 
-        mLoadingAni = (AVLoadingIndicatorView)findViewById(R.id.loading_ani);
-        mLoadingAni.setIndicator("BallTrianglePathIndicator");
-        mLoadingAni.show();
+        mMainAni.setVisibility(View.VISIBLE);
+        mSendingAni.setVisibility(View.INVISIBLE);
     }
 
     private void layoutSettingAfterTakePic() {
-        explain_text = (TextView) findViewById(R.id.explain_text);
+        mText_layout.setVisibility(View.INVISIBLE);
         explain_text.setText("");
 
-        mBgimg = (ImageView) findViewById(R.id.bg_img);
         mBgimg.setVisibility(View.INVISIBLE);
-
-        mImage = (ImageView) findViewById(R.id.taken_picture);
         mImage.setVisibility(View.VISIBLE);
 
-        mLoadingAni = (AVLoadingIndicatorView)findViewById(R.id.loading_ani);
-        mLoadingAni.hide();
-        //mLoadingAni.setVisibility(View.GONE);
+        mMainAni.setVisibility(View.INVISIBLE);
+        mSendingAni.setVisibility(View.INVISIBLE);
     }
 
     private void displaySendingAni() {
+        mText_layout.setVisibility(View.VISIBLE);
         explain_text.setText(R.string.sending);
-        mLoadingAni.setIndicator("LineScaleIndicator");
-        //mLoadingAni.setVisibility(View.VISIBLE);
-        mLoadingAni.show();
+
+        mMainAni.setVisibility(View.INVISIBLE);
+        mSendingAni.setVisibility(View.VISIBLE);
     }
 
     private void initPIO() {
@@ -364,8 +369,8 @@ public class ImageClassifierActivity extends Activity implements ImageReader.OnI
         byte[] data = null;
         try {
 //            String url = "http://andapp.freetings.in/testbyme.php?";
-            //String url = "http://172.20.10.9:5000/send_image";
-            String url = "http://192.168.43.209:5000/send-image";
+            String url = "http://172.20.10.9:5000/send_image";
+            //String url = "http://192.168.43.209:5000/send-image";
             HttpClient httpclient = new DefaultHttpClient();
             HttpPost httppost = new HttpPost(url);
             MultipartEntity entity = new MultipartEntity();
@@ -492,28 +497,6 @@ public class ImageClassifierActivity extends Activity implements ImageReader.OnI
             @Override
             public void run() {
                 mImage.setImageBitmap(bitmap);
-                CountDownTimer sedingtimer = new CountDownTimer(5000, 1000) {
-                    @Override
-                    public void onTick(long l) {
-                        displaySendingAni();
-                    }
-                    @Override
-                    public void onFinish() {
-                        //setContentView(R.layout.layout_main);
-                        layoutSettingBeforeTakePic();
-                        try {
-                            if (mBackgroundThread != null) mBackgroundThread.quit();
-                        } catch (Throwable t) {
-                            // close quietly
-                        }
-                        mBackgroundThread = null;
-                        mBackgroundHandler = null;
-                        init();
-                        Log.e("carol","finish!!!");
-                    }
-                };
-
-                sedingtimer.start();
             }
         });
 
@@ -533,7 +516,7 @@ public class ImageClassifierActivity extends Activity implements ImageReader.OnI
 ////            setReady(true);
 //        }
 
-        setReady(true);
+//        setReady(true);
 
 
 //        runOnUiThread(new Runnable() {
@@ -664,6 +647,35 @@ public class ImageClassifierActivity extends Activity implements ImageReader.OnI
             textHeight = textPaint.descent() - textPaint.ascent();
             textOffset = (textHeight / 2) - textPaint.descent();
 
+            final CountDownTimer showPicTimer = new CountDownTimer(3000, 1000) {
+                @Override
+                public void onTick(long l) {
+
+                }
+                @Override
+                public void onFinish() {
+                    ui_init();
+                    displaySendingAni();
+                    CountDownTimer sedingtimer = new CountDownTimer(5000, 1000) {
+                        int cnt = 5;
+                        @Override
+                        public void onTick(long l) {
+                            cnt--;
+                            if(cnt==0) {
+                                explain_text.setText("Complete!");
+                            }
+                        }
+                        @Override
+                        public void onFinish() {
+                            thread_init();
+                            ui_init();
+                            layoutSettingBeforeTakePic();
+                        }
+                    };
+                    sedingtimer.start();
+                }
+            };
+
             CountDownTimer timer = new CountDownTimer(5000, 1000) {
                 @Override
                 public void onTick(long l) {
@@ -673,9 +685,11 @@ public class ImageClassifierActivity extends Activity implements ImageReader.OnI
                 public void onFinish() {
                     cnt = -1;
                     viewHandler.removeCallbacks(updateView);
-                    mBackgroundHandler.post(mBackgroundClickHandler);
                     setContentView(R.layout.layout_main);
+                    ui_init();
                     layoutSettingAfterTakePic();
+                    showPicTimer.start();
+                    mBackgroundHandler.post(mBackgroundClickHandler);
                 }
             };
 

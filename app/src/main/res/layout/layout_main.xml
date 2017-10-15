@@ -9,7 +9,7 @@
             android:id="@+id/bg_img"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:src="@drawable/starry_night"/>
+            android:src="@drawable/bg_full"/>
 
         <ImageView
             android:id="@+id/taken_picture"
@@ -20,8 +20,9 @@
             android:visibility="invisible"/>
 
         <RelativeLayout
+            android:id="@+id/text_layout"
             android:layout_width="300dp"
-            android:layout_height="100dp"
+            android:layout_height="150dp"
             android:background="#80000000"
             android:layout_centerVertical="true"
             android:layout_centerHorizontal="true">
@@ -31,17 +32,41 @@
                 android:layout_height="wrap_content"
                 android:layout_centerHorizontal="true"
                 android:layout_marginLeft="30dp"
-                android:textSize="15dip"
+               android:layout_marginTop="20dp"
+                android:textSize="20dip"
+               android:text="@string/choose_style_msg"
                 />
 
-            <com.wang.avi.AVLoadingIndicatorView
-                android:id="@+id/loading_ani"
+            <com.github.ybq.android.spinkit.SpinKitView
+                xmlns:app="http://schemas.android.com/apk/res-auto"
+                android:id="@+id/main_ani"
+                style="@style/SpinKitView.CubeGrid"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
-                android:layout_marginLeft="5dp"
-                android:layout_below="@id/explain_text"
+                android:layout_alignParentBottom="true"
                 android:layout_centerHorizontal="true"
-                /> <!--app:indicatorName="LineScaleIndicator "-->
+                android:layout_marginBottom="30dp"
+                 /> <!--app:SpinKit_Color="@color/common_google_signin_btn_tint"-->
+
+            <com.github.ybq.android.spinkit.SpinKitView
+                xmlns:app="http://schemas.android.com/apk/res-auto"
+                android:id="@+id/sending_ani"
+                style="@style/SpinKitView.Wave"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentBottom="true"
+                android:layout_centerHorizontal="true"
+                android:layout_marginBottom="30dp"
+                android:visibility="invisible"/><!--app:SpinKit_Color="@color/common_google_signin_btn_tint"-->
+
         </RelativeLayout>
+
+    <!--<Button
+        android:id="@+id/cancel_btn"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentRight="true"
+        android:layout_alignParentBottom="true"
+        android:text="cancel"/>-->
+
 </RelativeLayout>
