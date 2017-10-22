@@ -9,9 +9,23 @@
             android:id="@+id/bg_img"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:src="@drawable/bg_full"/>
+            android:adjustViewBounds="true"
+            android:scaleType="centerCrop"
+            android:gravity="center"
+            />
+    <!--android:src="@drawable/bg_full"-->
 
-        <ImageView
+    <Button
+        android:id="@+id/btn_random"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentRight="true"
+        android:layout_marginRight="20dp"
+        android:layout_marginTop="20dp"
+        android:text="Random"/>
+
+
+    <ImageView
             android:id="@+id/taken_picture"
             android:layout_width="640dip"
             android:layout_height="480dip"
@@ -32,21 +46,22 @@
                 android:layout_height="wrap_content"
                 android:layout_centerHorizontal="true"
                 android:layout_marginLeft="30dp"
-               android:layout_marginTop="20dp"
-                android:textSize="20dip"
-               android:text="@string/choose_style_msg"
+                android:layout_marginTop="20dp"
+                android:textSize="18dip"
+                android:gravity="center"
+                android:text="@string/choose_style_msg"
                 />
 
-            <com.github.ybq.android.spinkit.SpinKitView
-                xmlns:app="http://schemas.android.com/apk/res-auto"
-                android:id="@+id/main_ani"
-                style="@style/SpinKitView.CubeGrid"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_alignParentBottom="true"
-                android:layout_centerHorizontal="true"
-                android:layout_marginBottom="30dp"
-                 /> <!--app:SpinKit_Color="@color/common_google_signin_btn_tint"-->
+            <!--<com.github.ybq.android.spinkit.SpinKitView-->
+                <!--xmlns:app="http://schemas.android.com/apk/res-auto"-->
+                <!--android:id="@+id/main_ani"-->
+                <!--style="@style/SpinKitView.CubeGrid"-->
+                <!--android:layout_width="wrap_content"-->
+                <!--android:layout_height="wrap_content"-->
+                <!--android:layout_alignParentBottom="true"-->
+                <!--android:layout_centerHorizontal="true"-->
+                <!--android:layout_marginBottom="30dp"-->
+                 <!--/> &lt;!&ndash;app:SpinKit_Color="@color/common_google_signin_btn_tint"&ndash;&gt;-->
 
             <com.github.ybq.android.spinkit.SpinKitView
                 xmlns:app="http://schemas.android.com/apk/res-auto"

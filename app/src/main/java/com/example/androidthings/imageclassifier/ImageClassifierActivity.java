@@ -24,13 +24,13 @@ import android.graphics.Paint;
 import android.graphics.RectF;
 import android.media.Image;
 import android.media.ImageReader;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.CountDownTimer;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.speech.tts.TextToSpeech;
 import android.speech.tts.UtteranceProgressListener;
-import android.support.annotation.NonNull;
 import android.text.TextPaint;
 import android.util.Log;
 import android.view.KeyEvent;
@@ -42,20 +42,16 @@ import android.widget.TextView;
 
 import com.example.androidthings.imageclassifier.classifier.TensorFlowImageClassifier;
 import com.github.ybq.android.spinkit.SpinKitView;
-import com.google.android.gms.tasks.OnCompleteListener;
-import com.google.android.gms.tasks.Task;
 import com.google.android.things.contrib.driver.button.Button;
 import com.google.android.things.contrib.driver.button.ButtonInputDriver;
 import com.google.android.things.pio.Gpio;
 import com.google.android.things.pio.PeripheralManagerService;
-import com.google.firebase.auth.AuthResult;
-import com.google.firebase.auth.FirebaseAuth;
-import com.google.firebase.auth.FirebaseUser;
 
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.entity.mime.MultipartEntity;
 import org.apache.http.entity.mime.content.ByteArrayBody;
@@ -63,13 +59,14 @@ import org.apache.http.entity.mime.content.StringBody;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.util.EntityUtils;
 
+import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.nio.charset.Charset;
 import java.util.Locale;
-import java.util.Timer;
-import java.util.TimerTask;
+import java.util.Random;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static com.example.androidthings.imageclassifier.R.id.results;
@@ -93,21 +90,17 @@ public class ImageClassifierActivity extends Activity implements ImageReader.OnI
     private TextView explain_text;
     private ImageView mImage;
     private ImageView mBgimg;
-    private SpinKitView mMainAni;
+//    private SpinKitView mMainAni;
     private SpinKitView mSendingAni;
     CircularCountdown circleView;
+    private android.widget.Button mRandomBtn;
 
     private AtomicBoolean mReady = new AtomicBoolean(false);
     private ButtonInputDriver mButtonDriver;
     private Gpio mReadyLED;
 
-    private FirebaseAuth mAuth;
-    private FirebaseAuth.AuthStateListener mAuthListener;
-
-    private TimerTask mTask;
-    private Timer mTimer;
-
-    private String styleType = "0";
+    private String styleType = "-1";
+    private String mBgImageName = "bg_full";
     private int cnt;
 
     @Override
@@ -118,78 +111,82 @@ public class ImageClassifierActivity extends Activity implements ImageReader.OnI
         setContentView(R.layout.layout_main);
         thread_init();
         ui_init();
+
+        setBg(mBgImageName, styleType);
+//        mBgimg.setImageDrawable(getResources().getDrawable(R.drawable.starry_night));
         initPIO();
         layoutSettingBeforeTakePic();
 
-        MqttHandler = MqttHandler.getInstance();
-        MqttHandler.startMqtt();
+//        MqttHandler = MqttHandler.getInstance();
+//        MqttHandler.startMqtt(ImageClassifierActivity.this);
 
-        mAuth = FirebaseAuth.getInstance();
-        mAuthListener = new FirebaseAuth.AuthStateListener() {
-            @Override
-            public void onAuthStateChanged(@NonNull FirebaseAuth firebaseAuth) {
-                FirebaseUser user = firebaseAuth.getCurrentUser();
-                if (user != null) {
-                    // User is signed in
-                    Log.d(TAG, "onAuthStateChanged:signed_in:" + user.getUid());
-                } else {
-                    // User is signed out
-                    Log.d(TAG, "onAuthStateChanged:signed_out");
-                }
-                // ...
-            }
-        };
     }
 
+    public void setBg(String imageName, String style){
+
+        if(style != "-1"){
+            new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    runOnUiThread(new Runnable(){
+                        @Override
+                        public void run() {
+                            explain_text.setText(R.string.take_pic_msg);
+                        }
+                    });
+                }
+            }).start();
+
+        }else{
+            new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    runOnUiThread(new Runnable(){
+                        @Override
+                        public void run() {
+                            explain_text.setText(R.string.choose_style_msg);
+                        }
+                    });
+                }
+            }).start();
+
+        }
+        mBgImageName = imageName;
+        styleType = style;
+
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                runOnUiThread(new Runnable(){
+                    @Override
+                    public void run() {
+                        int resID = getResources().getIdentifier(mBgImageName , "drawable", getPackageName());
+//        mBgimg.setImageDrawable(getResources().getDrawable(R.drawable.starry_night));
+                        mBgimg.setImageResource(resID);
+                    }
+                });
+            }
+        }).start();
+
+    }
     @Override
     public void onStart() {
         super.onStart();
-        mAuth.addAuthStateListener(mAuthListener);
     }
 
     @Override
     public void onStop() {
         super.onStop();
-        if (mAuthListener != null) {
-            mAuth.removeAuthStateListener(mAuthListener);
-        }
     }
 
     @Override
     protected void onResume() {
+
         super.onResume();
-        //add listener
-        mAuth.addAuthStateListener(mAuthListener);
-        mAuth.signInWithEmailAndPassword("hantaejae@daum.net", "htj9023727")
-                .addOnCompleteListener(this, new OnCompleteListener<AuthResult>() {
-                    @Override
-                    public void onComplete(@NonNull Task<AuthResult> task) {
-                        Log.d(TAG, "signInWithEmail:onComplete:" + task.isSuccessful());
-
-                        // If sign in fails, display a message to the user. If sign in succeeds
-                        // the auth state listener will be notified and logic to handle the
-                        // signed in user can be handled in the listener.
-                        if (!task.isSuccessful()) {
-                            Log.w(TAG, "signInWithEmail:failed", task.getException());
-//                            Toast.makeText(EmailPasswordActivity.this, R.string.auth_failed,
-//                                    Toast.LENGTH_SHORT).show();
-                        }
-                    }
-                });
-
-//        mTask = new TimerTask() {
-//            @Override
-//            public void run() {
-//
-//                if (mReady.get()) {
-//                    setReady(false);
-//                    mTimer.cancel();
-//                    mBackgroundHandler.post(mBackgroundClickHandler);
-//                } else {
-//                    Log.i(TAG, "Sorry, NEXT TIME!");
-//                }
-//            }
-//        };
+//        if (MqttHandler == null){
+//            MqttHandler = MqttHandler.getInstance();
+//            MqttHandler.startMqtt(ImageClassifierActivity.this);
+//        }
     }
 
     private void thread_init() {
@@ -204,8 +201,10 @@ public class ImageClassifierActivity extends Activity implements ImageReader.OnI
         explain_text = (TextView) findViewById(R.id.explain_text);
         mBgimg = (ImageView) findViewById(R.id.bg_img);
         mImage = (ImageView) findViewById(R.id.taken_picture);
-        mMainAni = (SpinKitView)findViewById(R.id.main_ani);
+//        mMainAni = (SpinKitView)findViewById(R.id.main_ani);
         mSendingAni = (SpinKitView) findViewById(R.id.sending_ani);
+        mRandomBtn = (android.widget.Button) findViewById(R.id.btn_random);
+
     }
 
     private void layoutSettingBeforeTakePic() {
@@ -215,9 +214,55 @@ public class ImageClassifierActivity extends Activity implements ImageReader.OnI
         mBgimg.setVisibility(View.VISIBLE);
         mImage.setVisibility(View.GONE);
 
-        mMainAni.setVisibility(View.VISIBLE);
+//        mMainAni.setVisibility(View.VISIBLE);
         mSendingAni.setVisibility(View.INVISIBLE);
+
+        styleType = "-1";
+        mBgImageName = "bg_full";
+        setBg(mBgImageName, styleType);
+
+        mRandomBtn.setVisibility(View.VISIBLE);
+        mRandomBtn.setOnClickListener(new View.OnClickListener(){
+            @Override
+            public void onClick(View v) {
+                new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        runOnUiThread(new Runnable(){
+                            @Override
+                            public void run() {
+                                try {
+
+                                    Random random = new Random();
+                                    String rnd = ((int) (Math.random() * 6)) + "" ;
+                                    Log.e("carol", "num2 :" + rnd);
+                                    styleType = rnd;
+                                    //takePicture(rnd);
+                                    new CallTakePic().execute();
+                                }catch(Exception e){
+                                    e.printStackTrace();
+                                }
+                            }
+                        });
+                    }
+                }).start();
+
+            }
+
+
+        });
+
     }
+
+    private class CallTakePic extends AsyncTask{
+        @Override
+        protected Object doInBackground(Object[] params) {
+            Log.e("carol","doinBack");
+            takePicture(styleType);
+            return null;
+        }
+    }
+
 
     private void layoutSettingAfterTakePic() {
         mText_layout.setVisibility(View.INVISIBLE);
@@ -226,16 +271,18 @@ public class ImageClassifierActivity extends Activity implements ImageReader.OnI
         mBgimg.setVisibility(View.INVISIBLE);
         mImage.setVisibility(View.VISIBLE);
 
-        mMainAni.setVisibility(View.INVISIBLE);
+//        mMainAni.setVisibility(View.INVISIBLE);
         mSendingAni.setVisibility(View.INVISIBLE);
+        mRandomBtn.setVisibility(View.INVISIBLE);
     }
 
     private void displaySendingAni() {
         mText_layout.setVisibility(View.VISIBLE);
-        explain_text.setText(R.string.sending);
+        explain_text.setText(R.string.send_ongoing);
 
-        mMainAni.setVisibility(View.INVISIBLE);
+//        mMainAni.setVisibility(View.INVISIBLE);
         mSendingAni.setVisibility(View.VISIBLE);
+        mRandomBtn.setVisibility(View.INVISIBLE);
     }
 
     private void initPIO() {
@@ -317,15 +364,20 @@ public class ImageClassifierActivity extends Activity implements ImageReader.OnI
     @Override
     public boolean onKeyUp(int keyCode, KeyEvent event) {
         Log.d(TAG, "Received key up: " + keyCode + ". Ready = " + mReady.get());
-        if (keyCode == KeyEvent.KEYCODE_ENTER) {
-            if (mReady.get()) {
-                setReady(false);
-                //mBackgroundHandler.post(mBackgroundClickHandler);
-                setContentView(new CircularCountdown(this));
-            } else {
-                Log.i(TAG, "Sorry, processing hasn't finished. Try again in a few seconds");
+        if(styleType == "-1"){
+            Log.i(TAG, "Select style first!!!");
+            styleType = "-1";
+        }else{
+            if (keyCode == KeyEvent.KEYCODE_ENTER) {
+                if (mReady.get()) {
+                    setReady(false);
+                    //mBackgroundHandler.post(mBackgroundClickHandler);
+                    setContentView(new CircularCountdown(this));
+                } else {
+                    Log.i(TAG, "Sorry, processing hasn't finished. Try again in a few seconds");
+                }
+                return true;
             }
-            return true;
         }
         return super.onKeyUp(keyCode, event);
     }
@@ -340,37 +392,13 @@ public class ImageClassifierActivity extends Activity implements ImageReader.OnI
             }
         }
 
-//        if (ready) {
-//            mTimer = new Timer();
-//            mTimer.schedule(mTask, 5000, 10000);
-//        }
-    }
-
-
-    private static final String GOOGLE_APPLICATION_CREDENTIALS = "ras-pic-9cfde668dbc3.json";
-
-    public String loadJSONFromAsset() {
-        String json = null;
-        try {
-            InputStream is = this.getAssets().open(GOOGLE_APPLICATION_CREDENTIALS);
-            int size = is.available();
-            byte[] buffer = new byte[size];
-            is.read(buffer);
-            is.close();
-            json = new String(buffer, "UTF-8");
-        } catch (IOException ex) {
-            ex.printStackTrace();
-            return null;
-        }
-        return json;
     }
 
     public HttpEntity postRequest(Bitmap imageBitmap) {
         byte[] data = null;
         try {
 //            String url = "http://andapp.freetings.in/testbyme.php?";
-            String url = "http://172.20.10.9:5000/send_image";
-            //String url = "http://192.168.43.209:5000/send-image";
+            String url = "http://192.168.255.214:5000/send-image";
             HttpClient httpclient = new DefaultHttpClient();
             HttpPost httppost = new HttpPost(url);
             MultipartEntity entity = new MultipartEntity();
@@ -379,26 +407,73 @@ public class ImageClassifierActivity extends Activity implements ImageReader.OnI
                 ByteArrayOutputStream bos = new ByteArrayOutputStream();
                 imageBitmap.compress(Bitmap.CompressFormat.JPEG, 100, bos);
                 data = bos.toByteArray();
-                entity.addPart("photo", new ByteArrayBody(data,"image/jpeg", "test2.jpg"));
+                entity.addPart("photo", new ByteArrayBody(data,"image/jpeg","wave.jpg"));
             }
-            styleType = MqttHandler.getStyleType();
-            if(styleType != "0"){
+
+            if(styleType != "-1"){
                 Log.e(TAG, "postRequest styleType :" + styleType);
                 entity.addPart("styleType", new StringBody(styleType,"text/plain", Charset.forName("UTF-8")));
             }
-
-//            entity.addPart("category", new StringBody(catid,"text/plain", Charset.forName("UTF-8")));
-//            entity.addPart("your_contact_no", new  StringBody(phone,"text/plain",Charset.forName("UTF-8")));
-//            entity.addPart("your_emailid", new StringBody(email,"text/plain",Charset.forName("UTF-8")));
-//            entity.addPart("your_name", new StringBody(name,"text/plain",Charset.forName("UTF-8")));
 
             httppost.setEntity(entity);
             HttpResponse resp = httpclient.execute(httppost);
             HttpEntity resEntity = resp.getEntity();
             String string= EntityUtils.toString(resEntity);
-            //  Log.e("sdjkfkhk", string);
+            Log.i(TAG, "postRequest resEntity :" + resEntity);
+            Log.i(TAG, "postRequest resp.getStatusLine() : " + resp.getStatusLine());
+            Log.i(TAG, "postRequest resp.getStatusLine().getStatusCode : " + resp.getStatusLine().getStatusCode());
+            if(resp.getStatusLine().getStatusCode() == 200){
+                new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        runOnUiThread(new Runnable(){
+                            @Override
+                            public void run() {
+                                explain_text.setText(R.string.send_complete);
+                                CountDownTimer sedingtimer = new CountDownTimer(3000, 1000) {
+                                    @Override
+                                    public void onTick(long l) {
 
-            Log.e(TAG, "postRequest resEntity :" + resEntity);
+                                    }
+                                    @Override
+                                    public void onFinish() {
+                                        thread_init();
+                                        ui_init();
+                                        layoutSettingBeforeTakePic();
+                                    }
+                                };
+                                sedingtimer.start();
+                            }
+                        });
+                    }
+                }).start();
+            }else{
+                new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        runOnUiThread(new Runnable(){
+                            @Override
+                            public void run() {
+                                explain_text.setText(R.string.send_err);
+                                CountDownTimer sedingtimer = new CountDownTimer(3000, 1000) {
+                                    @Override
+                                    public void onTick(long l) {
+
+                                    }
+                                    @Override
+                                    public void onFinish() {
+                                        thread_init();
+                                        ui_init();
+                                        layoutSettingBeforeTakePic();
+                                    }
+                                };
+                                sedingtimer.start();
+                            }
+                        });
+                    }
+                }).start();
+            }
+
             return resEntity;
         } catch (ClientProtocolException e) {
             e.printStackTrace();
@@ -409,82 +484,77 @@ public class ImageClassifierActivity extends Activity implements ImageReader.OnI
         }
         return null;
     }
-    public void savePicture(Bitmap bitmap){
-        postRequest(bitmap);
-//        Date from = new Date();
-//        SimpleDateFormat transFormat = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss");
-//        String picName = transFormat.format(from);
-//
-//        FirebaseStorage storage = FirebaseStorage.getInstance();
-//        StorageReference storageRef = storage.getReferenceFromUrl("gs://ras-pic.appspot.com/input/raspberry_pic");
-//
-//        // Create a reference to "mountains.jpg"
-//        StorageReference mountainsRef = storageRef.child("c_"+picName+".jpg");
-//
-//
-//        // Get the data from an ImageView as bytes
-////        mImage.setDrawingCacheEnabled(true);
-////        mImage.buildDrawingCache();
-////        Bitmap bitmap = mImage.getDrawingCache();
-//        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-//        bitmap.compress(Bitmap.CompressFormat.JPEG, 100, baos);
-//        byte[] data = baos.toByteArray();
-//
-//        UploadTask uploadTask = mountainsRef.putBytes(data);
-//        uploadTask.addOnFailureListener(new OnFailureListener() {
-//            @Override
-//            public void onFailure(@NonNull Exception exception) {
-//                Log.e(TAG, "uploadTask:onFailure:" + exception);
-//                setReady(true);
-//                mResultViews[0].setText("uploadTask:onFailure exception :" + exception);
-//                // Handle unsuccessful uploads
-//            }
-//        }).addOnSuccessListener(new OnSuccessListener<UploadTask.TaskSnapshot>() {
-//            @Override
-//            public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
-//                // taskSnapshot.getMetadata() contains file metadata such as size, content-type, and download URL.
-//                Uri downloadUrl = taskSnapshot.getDownloadUrl();
-//                Log.d(TAG, "uploadTask:onSuccess taskSnapshot :" + taskSnapshot);
-//                Log.d(TAG, "uploadTask:onSuccess downloadUrl :" + downloadUrl);
-//                setReady(true);
-//                mResultViews[0].setText("uploadTask:onSuccess downloadUrl :" + downloadUrl);
-//            }
-//        });
 
+    // convert inputstream to String
+    private static String convertInputStreamToString(InputStream inputStream) throws IOException{
+        BufferedReader bufferedReader = new BufferedReader( new InputStreamReader(inputStream));
+        String line = "";
+        String result = "";
+        while((line = bufferedReader.readLine()) != null)
+            result += line;
 
-//        InputStream stream;
-//        File localFile;
-//        try{
-//            AssetManager assetMgr = getAssets();
-//            stream = assetMgr.open("rpi3.png");
-////            localFile = createFileFromInputStream(stream);
-//        } catch (IOException ex) {
-//            throw new IllegalStateException("IOException " + ex);
-//        };
-//
-//        FirebaseStorage storage = FirebaseStorage.getInstance();
-//        StorageReference storageRef = storage.getReferenceFromUrl("gs://ras-pic.appspot.com");
-//
-//        // Create a reference to "mountains.jpg"
-//        StorageReference mountainsRef = storageRef.child("rpi3.png");
-//
-//        Log.d(TAG, "'mountainsRef : ':" + mountainsRef);
-//        mountainsRef.putStream(stream).addOnFailureListener(new OnFailureListener() {
-//            @Override
-//            public void onFailure(@NonNull Exception exception) {
-//                Log.e(TAG, "putStream:onFailure:" + exception);
-//                // Handle unsuccessful uploads
-//            }
-//        }).addOnSuccessListener(new OnSuccessListener<UploadTask.TaskSnapshot>() {
-//
-//            @Override
-//            public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
-//                Log.d(TAG, "putStream:onSuccess:" + taskSnapshot);
-//                // taskSnapshot.getMetadata() contains file metadata such as size, content-type, and download URL.
-//                Uri downloadUrl = taskSnapshot.getDownloadUrl();
-//            }
-//        });
+        inputStream.close();
+        return result;
+
     }
+
+    public void takePicture(String styleType){
+        sendReadyReq();
+        Log.d(TAG, "Received takePicture MQTT - Ready = " + mReady.get());
+        if(styleType == "-1"){
+            Log.i(TAG, "Select style first!!!");
+        }else{
+            Log.i(TAG, "mReady.get() : " +  mReady.get());
+                if (mReady.get()) {
+                    new Thread(new Runnable() {
+                        @Override
+                        public void run() {
+                            runOnUiThread(new Runnable(){
+                                @Override
+                                public void run() {
+                                    setReady(false);
+                                    setContentView(new CircularCountdown(ImageClassifierActivity.this));
+                                }
+                            });
+                        }
+                    }).start();
+                } else {
+                    Log.i(TAG, "Sorry, processing hasn't finished. Try again in a few seconds");
+                }
+        }
+    }
+    public void sendReadyReq(){
+        InputStream inputStream = null;
+        String result = "";
+        try {
+            Log.e(TAG, "sendReadyReq styleType :" + styleType);
+
+            String url = "http://192.168.255.214:5000/selected-style?styleId="+styleType;
+            HttpClient httpclient = new DefaultHttpClient();
+            HttpGet httpget = new HttpGet(url);
+            MultipartEntity entity = new MultipartEntity();
+
+            HttpResponse httpResponse = httpclient.execute(httpget);
+            inputStream = httpResponse.getEntity().getContent();
+            int statusCode = httpResponse.getStatusLine().getStatusCode();
+            if(inputStream != null)
+                result = convertInputStreamToString(inputStream);
+            else
+                result = "Did not work!";
+
+            Log.i(TAG, "getRequest statusCode :" + statusCode);
+            Log.i(TAG, "getRequest httpResponse.getStatusLine() : " + httpResponse.getStatusLine());
+            Log.i(TAG, "getRequest result :" + result);
+
+        } catch (ClientProtocolException e) {
+            e.printStackTrace();
+            Log.e(TAG, "getRequest ClientProtocolException :" + e);
+        } catch (IOException e) {
+            Log.e(TAG, "getRequest IOException :" + e);
+            e.printStackTrace();
+        }
+    }
+
 
     @Override
     public void onImageAvailable(ImageReader reader) {
@@ -505,33 +575,7 @@ public class ImageClassifierActivity extends Activity implements ImageReader.OnI
         Log.d(TAG, "Got the following results from Tensorflow: " + results);
 
         getAssets();
-        savePicture(bitmap);
-
-//        if (mTtsEngine != null) {
-//            // speak out loud the result of the image recognition
-//            mTtsSpeaker.speakResults(mTtsEngine, results);
-//        } else {
-//            // if theres no TTS, we don't need to wait until the utterance is spoken, so we set
-//            // to ready right away.
-////            setReady(true);
-//        }
-
-//        setReady(true);
-
-
-//        runOnUiThread(new Runnable() {
-//            @Override
-//            public void run() {
-//                for (int i = 0; i < mResultViews.length; i++) {
-//                    if (results.size() > i) {
-//                        Classifier.Recognition r = results.get(i);
-//                        mResultViews[i].setText(r.getTitle() + " : " + r.getConfidence().toString());
-//                    } else {
-//                        mResultViews[i].setText(null);
-//                    }
-//                }
-//            }
-//        });
+        postRequest(bitmap);
     }
 
     @Override
@@ -569,7 +613,7 @@ public class ImageClassifierActivity extends Activity implements ImageReader.OnI
             // close quietly
         }
 
-        mTimer.cancel();
+
         if (mTtsEngine != null) {
             mTtsEngine.stop();
             mTtsEngine.shutdown();
@@ -656,23 +700,23 @@ public class ImageClassifierActivity extends Activity implements ImageReader.OnI
                 public void onFinish() {
                     ui_init();
                     displaySendingAni();
-                    CountDownTimer sedingtimer = new CountDownTimer(5000, 1000) {
-                        int cnt = 5;
-                        @Override
-                        public void onTick(long l) {
-                            cnt--;
-                            if(cnt==0) {
-                                explain_text.setText("Complete!");
-                            }
-                        }
-                        @Override
-                        public void onFinish() {
-                            thread_init();
-                            ui_init();
-                            layoutSettingBeforeTakePic();
-                        }
-                    };
-                    sedingtimer.start();
+//                    CountDownTimer sedingtimer = new CountDownTimer(5000, 1000) {
+//                        int cnt = 5;
+//                        @Override
+//                        public void onTick(long l) {
+//                            cnt--;
+//                            if(cnt==0) {
+//                                explain_text.setText("Complete!");
+//                            }
+//                        }
+//                        @Override
+//                        public void onFinish() {
+//                            thread_init();
+//                            ui_init();
+//                            layoutSettingBeforeTakePic();
+//                        }
+//                    };
+//                    sedingtimer.start();
                 }
             };
 

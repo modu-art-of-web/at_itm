@@ -19,6 +19,9 @@
     <string name="request_permission">This sample needs camera permission.</string>
     <string name="camera_error">This device doesn\'t support Camera2 API.</string>
     <string name="help_message">When the LED is on, press the button to capture an image</string>
-    <string name="choose_style_msg">Choose your style!</string> <!--Please Choose your Style, Then shooting starts after 5seconds.-->
-    <string name="sending">Sending</string>
+    <string name="choose_style_msg">Choose one of the styles below</string> <!--Please Choose your Style, Then shooting starts after 5seconds.-->
+    <string name="take_pic_msg">Touch the right button\nto take a picture</string> <!--Please Choose your Style, Then shooting starts after 5seconds.-->
+    <string name="send_ongoing">Sending</string>
+    <string name="send_complete">Complete!</string>
+    <string name="send_err">Error..</string>
 </resources>
